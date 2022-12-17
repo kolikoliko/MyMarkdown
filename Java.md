@@ -54,7 +54,67 @@ public static void 函数名字(){
 
 java的类有多种，其中有
 
-javabean类，java测试类（里面包括main方法）
+javaBean类，java测试类（里面包括main方法）
+
+
+
+### 对象
+
+在写函数和对象的时候，需要加上public或者private来声明他的格式
+
+
+
+### 构造函数
+
+和c++中一样，但是注意最好每次都写上无参构造函数，规范
+
+
+
+### 标准的javabean类
+
+所有成员变量private
+
+无参构造以及所有变量的构造函数写好
+
+getter and setter
+
+一些其他的操作
+
+
+
+快捷键可以利用ctrl+insert进行操作或者右键generate
+
+或者使用插件ptg快速生成
+
+
+
+### 类的内存图
+
+参考[对象内存图](https://www.bilibili.com/video/BV17F411T7Ao/?p=87&spm_id_from=pageDriver&vd_source=0eab86b58f0ee8a55b25e7648743b65a)
+
+理解栈，堆，方法区之间的关系
+
+（在new一个对象的时候，实际是在堆里面开辟了内存空间）
+
+![image-20221217210008984](images/image-20221217210008984.png)
+
+
+
+## 输出
+
+### sout
+
+简单的控制台输出
+
+
+
+### souf
+
+可以类比为C++中的prinf
+
+利用%s进行占位
+
+
 
 
 
@@ -63,4 +123,6 @@ javabean类，java测试类（里面包括main方法）
 ①按住鼠标滚轮拖拽可以实现竖排的选择
 
 ②ctrl+alt+L 格式化代码
+
+③ctrl+d向下赋值一行
 
