@@ -1,5 +1,7 @@
 # navicat 的使用笔记
 
+[TOC]
+
 ## 创建查询
 
 ---
@@ -160,3 +162,85 @@ UPDATE 表名 SET 列名=值 [where 条件]；
 在sql语言中添加注释需要使用`-- `
 
 或者使用`/* */`
+
+
+
+## 约束
+
+![image-20230103153410604](images/image-20230103153410604.png)
+
+自增长：`auto_increment`
+
+
+
+添加外键约束（实现表与表之间的相互关联）
+
+![image-20230103154750886](images/image-20230103154750886.png)
+
+
+
+## 多表的查询
+
+```sql
+SELECT * FROM stu, class WHERE stu.dept_id = class.id
+```
+
+
+
+### 内连接
+
+#### 隐式内连接
+
+通过起别名来减少代码量，利用`.`进行类似于面向对象的操作
+
+```sql
+SELECT t1.name,t2.class_type FROM stu t1, class t2 WHERE t1.dept_id = t2.id;
+```
+
+#### 显式内连接
+
+inner可以省略
+
+```sql
+SELECT * FROM stu inner join class on stu.dept_id = class.id;
+```
+
+
+
+### 外连接
+
+#### 左外连接
+
+查询emp表所有数据和对应部门的信息
+
+```sql
+select * from emp left join dept on emp.dep_id = dept.id;
+```
+
+#### 右外连接
+
+查询dept表的所有数据和对应员工的信息
+
+```sql
+select * from emp right join dept on emp.dep_id = dept.id;
+```
+
+
+
+### 子查询
+
+利用括号实现链式编程
+
+```sql
+select * from emp where salary > (select * from emp where id=10);
+```
+
+在多表查询当中使用
+
+![image-20230103165949269](images/image-20230103165949269.png)
+
+
+
+## 事务
+
+![image-20230103194620180](images/image-20230103194620180.png)

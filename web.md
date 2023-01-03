@@ -95,7 +95,7 @@ _代码_ `<link rel="stylesheet" href="css文件路径">`
 
 - `prompt`输入框
 - `alert`弹出警示框
-- `console。log`控制台输出
+- `console.log`控制台输出
 
                 <script>
                 prompt('请输入你的年龄');
