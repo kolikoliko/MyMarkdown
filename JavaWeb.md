@@ -145,3 +145,71 @@ public class JDBC_ResultSet {
 防注入的原理在于，在输入字符串的时候进行了转义
 
 ![image-20230103225600577](images/image-20230103225600577.png)
+
+在这里预编译功能需要自己打开
+
+```
+String sql = "jdbc:mysql://localhost/db ? userServerPreStatement=ture";
+```
+
+使用实例
+
+```java
+public class preStatement {
+    public static void main(String[] args) throws Exception {
+        //1.注册驱动
+        //Class.forName("com.mysql.cj.jdbc.Driver");
+
+        //2.获取链接
+        String url="jdbc:mysql://localhost:3306/jdbcdemo?useServerPreStatement=ture";
+        String user="koliko";
+        String password="abc123456";
+        Connection conn = DriverManager.getConnection(url, user, password);
+
+        //3.定义sql语句
+        String sql="select * from student where stu_id=?";
+
+        //4.获取pstmt对象
+        PreparedStatement pstmt = conn.prepareStatement(sql);
+
+        //5.设置？的值
+        pstmt.setInt(1,3);
+
+        //6.执行sql
+        ResultSet rs = pstmt.executeQuery();
+
+        //7.获取结果
+        List<student> list = new ArrayList<>();
+        while(rs.next()){
+            student stu = new student();
+            stu.setStu_id(rs.getInt("stu_id"));
+            stu.setStu_name(rs.getString("stu_name"));
+            stu.setStu_class(rs.getString("stu_class"));
+
+            list.add(stu);
+        }
+
+        //8.输出结果
+        System.out.println(list);
+
+        //9.释放资源
+        rs.close();
+        pstmt.close();
+        conn.close();
+    }
+}
+```
+
+
+
+### Druid（数据库连接池）
+
+
+
+### Maven
+
+统一IDE的结构，管理依赖，还有项目编译，测试，清除等功能
+
+#### 在IDEA中使用Maven
+
+在设置里面搜索Maven修改路径即可。

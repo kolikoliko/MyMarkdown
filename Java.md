@@ -126,3 +126,5 @@ getter and setter
 
 ③ctrl+d向下赋值一行
 
+④ctrl+r实现搜索替换
+
