@@ -204,12 +204,115 @@ public class preStatement {
 
 ### Druid（数据库连接池）
 
+用来管理用户的数据库连接（参考服务员与顾客的关系）
+
+```java
+@Test
+public void DruidTest() throws Exception {
+    //1.导入jar包
+    //2.定义.properties配置文件
+    //3.加载配置文件
+    Properties prop = new Properties();
+    prop.load(Files.newInputStream(Paths.get("JDBC/src/druid.properties")));
+
+    //4.获取连接对象
+    DataSource dataSource = DruidDataSourceFactory.createDataSource(prop);
+
+    //5.获取数据库的连接
+    Connection conn = dataSource.getConnection();
+
+    System.out.println(conn);
+}
+```
 
 
-### Maven
+
+## Maven
 
 统一IDE的结构，管理依赖，还有项目编译，测试，清除等功能
 
-#### 在IDEA中使用Maven
+安装的时候注意修改阿里云镜像加快下载速度，有需要自己修改仓库位置
+
+### 在IDEA中使用Maven
 
 在设置里面搜索Maven修改路径即可。
+
+
+
+## MyBatis
+
+一款优秀的**持久层框架**，用于**简化JDBC的开发**
+
+> 持久层：负责将数据保存到数据库的那层代码
+
+具体的代码和操作流程参考官方网站[MyBatis中文网](https://mybatis.net.cn/)
+
+
+
+### 添加依赖
+
+```xml
+<dependency>
+    <groupId>org.mybatis</groupId>
+    <artifactId>mybatis</artifactId>
+    <version>3.5.11</version>
+</dependency>
+
+<dependency>
+    <groupId>mysql</groupId>
+    <artifactId>mysql-connector-java</artifactId>
+    <version>8.0.30</version>
+</dependency>
+
+<dependency>
+    <groupId>junit</groupId>
+    <artifactId>junit</artifactId>
+    <version>4.13.2</version>
+    <scope>test</scope>
+</dependency>
+
+<dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-api</artifactId>
+    <version>2.0.5</version>
+</dependency>
+
+<dependency>
+    <groupId>ch.qos.logback</groupId>
+    <artifactId>logback-classic</artifactId>
+    <version>1.4.5</version>
+</dependency>
+
+<dependency>
+    <groupId>ch.qos.logback</groupId>
+    <artifactId>logback-core</artifactId>
+    <version>1.4.5</version>
+</dependency>
+```
+
+
+
+### 代码演示
+
+```java
+public class MyBatisDemo {
+    public static void main(String[] args) throws IOException {
+        //1.加载核心配置文件，获取 SqlSessionFactory
+        String resource = "mybatis-config.xml";
+        InputStream inputStream = Resources.getResourceAsStream(resource);
+        SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+
+        //2.获取SqlSessionFactory对象，用它来执行sql
+        SqlSession sqlSession = sqlSessionFactory.openSession();
+
+        //3.执行sql
+        List<User> users = sqlSession.selectList("selectAll");
+
+        System.out.println(users);
+
+        //4.释放资源
+        sqlSession.close();
+    }
+}
+```
+
