@@ -107,7 +107,48 @@ _代码_ `<link rel="stylesheet" href="css文件路径">`
 
 - `length` 可以获取字符串的长度+
 
+一般在for循环中使用let变量
+
 > 数据类型的转换
 
 - `string(num)`强制转换 字符->数字
 - `parseInt(string)` 数字->字符
+
+
+
+
+
+**下面介绍的是BOM对象**
+
+### window对象
+
+#### alert
+
+警告窗口
+
+#### confirm
+
+弹出窗口，一般是用来选择确定的，用var返回,if判断分叉
+
+#### 定时器
+
+1. `setTimeout(function，毫秒值)`只执行一次
+2. `setInterval(function, 毫秒值)`循环执行
+
+
+
+
+
+### Dom对象
+
+![image-20230107131134126](images/image-20230107131134126.png)
+
+
+
+**javascrip参考网站** w3cschool
+
+
+
+### 正则表达式
+
+![image-20230107134612041](images/image-20230107134612041.png)
