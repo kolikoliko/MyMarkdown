@@ -97,3 +97,5 @@
 5. `git commit -m “state”`提交到master
 6. 连接远程仓库，可按提示操作
 7. 上传
+
+![image-20230208232757539](images/image-20230208232757539.png)
