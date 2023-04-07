@@ -1,5 +1,7 @@
 # STM32CUBEMX 使用笔记
 
+[TOC]
+
 
 
 ## 基本操作
@@ -8,15 +10,15 @@
 
 > 1.  打开 `rcc` 的高速时钟
 > 2.  配置时钟树为最大的`72mhz`
-> 3.  `project`上选择开发的`mdk`编辑器
-> 4.  `code generator`上勾选第一个
-> 5.  最好打开 degug
+> 3.  选择debug为ser...的那个
+> 4.  `project`上选择开发的`mdk`编辑器
+> 5.  `code generator`上勾选第一个
 
 ---
 
 
 
-## 库函数代码使用
+## 一些模块的使用
 
 ### PWM
 
@@ -184,7 +186,35 @@ AT 模式下波特率：38400
                 }
         }
 
+再补充记录一些中断回调函数
 
+#### ADC中断
+
+```c
+ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+ {
+   if(hadc.Instance == ADC1)
+   {
+     //在这里写代码，实现需要的功能
+   }
+ }
+
+```
+
+#### EXIT中断
+
+```c
+void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin == GPIO_PIN_12)    //EXTI12
+  {
+  }
+  if(GPIO_Pin == GPIO_PIN_13)    //EXTI13
+  {
+  }
+｝
+
+```
 
 
 
