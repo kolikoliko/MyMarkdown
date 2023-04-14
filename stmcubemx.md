@@ -37,7 +37,7 @@
 
 打开持续转换
 
-写业务代码
+xxxxxxxxxx server:  port: 80​spring:  datasource:    druid:      driver-class-name: com.mysql.cj.jdbc.Driver      url: jdbc:mysql://localhost:3306/user?serverTimeZone=UTC      username: root      password: abc123456​#配置表前缀mybatis-plus:  global-config:    db-config:      table-prefix: userproperties
 
 ```c
 HAL_ADC_Start(&hadc1);//启动ADC转换
@@ -97,6 +97,7 @@ HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&ADC_Value,100);//启动ADC转换,第二个�
 - `OLED_Display_On()；`操作打开显示屏！！！很重要(之前漏加了导致一直没有上电显示)，后面则不需要类似 _reflesh_ 的操作
 - C6T6 的板子 Cubemx 有一个很傻逼的 bug，在 i2c 那里要修改一行代码` GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;`
 - **最好不要用 oled 来 debug（OLED 的代码过长，如果在串口使用时，消息会丢失）**
+- 在cubemx中使用的时候，&hi2c需要extern使用
 
 
 
