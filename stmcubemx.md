@@ -37,8 +37,6 @@
 
 打开持续转换
 
-xxxxxxxxxx server:  port: 80​spring:  datasource:    druid:      driver-class-name: com.mysql.cj.jdbc.Driver      url: jdbc:mysql://localhost:3306/user?serverTimeZone=UTC      username: root      password: abc123456​#配置表前缀mybatis-plus:  global-config:    db-config:      table-prefix: userproperties
-
 ```c
 HAL_ADC_Start(&hadc1);//启动ADC转换
 
