@@ -187,6 +187,27 @@ AT 模式下波特率：38400
 
 再补充记录一些中断回调函数
 
+#### 串口接收中断
+
+```c
+uint8_t Uart1_RxData;
+HAL_UART_Receive_IT(&huart2, (uint8_t *)&Uart1_RxData, 1);   //先开启接收中断
+```
+
+```c
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    UNUSED(huart);
+    if(huart == &huart2)//判断
+    {
+		//写协议
+       	HAL_UART_Receive_IT(&huart2, (uint8_t *)&Uart1_RxData, 1);   //再开启接收中断
+    }
+}
+```
+
+
+
 #### ADC中断
 
 ```c
@@ -217,6 +238,24 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 
 
 
+### MPU6050
+
+使用I2C与mpu6050进行通信，加速的测量过于简单所以这里就不做总结，重点在于如何求出欧拉角
+
+
+
+参考教程
+
+[STM32F1基于STM32CubeMX配置移植dmp库](https://blog.csdn.net/weixin_42880082/article/details/129121601)
+
+[MPU6050如何通过惯性积分计算旋转角度(Yaw角)](https://blog.51cto.com/70565912/3747207)
+
+
+
+这个难点在于移植还有欧拉角yaw的一个零偏处理，移植的问题在第一个教程当中有比较详细的源码可以参考（找了很久，走了很多错的方法），而零偏的话，可以参考第二个教程，相当于每次采样都减去偏移值。
+
+
+
 
 
 ## 优雅的嵌入式开发(配合Clion使用)	
@@ -241,7 +280,7 @@ stlink有时候因为芯片是盗版的需要加入芯片的型号（在RCT6中�
 
 ```
 source [find interface/stlink-v2.cfg]
-set CPUTAPID 0x2ba01477
+
 transport select hla_swd
 
 source [find target/stm32f1x.cfg]
@@ -254,7 +293,7 @@ reset_config none
 
 ```
 source [find interface/stlink-v2.cfg]
-
+set CPUTAPID 0x2ba01477 #zhe'li's
 transport select hla_swd
 
 source [find target/stm32f1x.cfg]

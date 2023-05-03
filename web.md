@@ -18,7 +18,7 @@ html 是浏览器需要的一种格式文本
 - `title` 提示文本，和 src 放一起，显示图片信息
 - `width=" "` 设置图片宽度
 - `height=" "` 设置图片高度
-- `border=" "` 设置图片边框
+- xxxxxxxxxx server:  port: 80​spring:  datasource:    druid:      driver-class-name: com.mysql.cj.jdbc.Driver      url: jdbc:mysql://localhost:3306/user?serverTimeZone=UTC      username: root      password: abc123456​#配置表前缀mybatis-plus:  global-config:    db-config:      table-prefix: userproperties
 - `<a href="跳转目标" target="目标窗口的弹出方式">文本或图像</a>` 超链接标签
   target 中`_self`指再当前窗口打开
   `_blank`指再新窗口打开
