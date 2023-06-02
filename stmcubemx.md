@@ -67,17 +67,18 @@ HAL_Delay(500);
 ```c
 HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&ADC_Value,100);//启动ADC转换,第二个参数为数据存储起始地址，第三个参数为DMA传输数据的长度
 
-	HAL_Delay(500);
-	//简单的滤波
-	for(i=0;i<100;i++){
-	ad1+=ADC_Value[i++];
-	ad2+=ADC_Value[i++];
-	ad1/=50;
-	ad2/=50;
-
-	printf("\r\n********ADC-DMA-Example*********\r\n");
-	printf("[\tmain]info:v=%1.3fmv\r\n",ad1*3300.0/4096);
-	printf("[\tmain]info:v=%1.3fmv\r\n",ad2*3300.0/4096);
+//循环z
+		HAL_Delay(1000);
+        //简单的滤波
+        for (i = 0, ad1 = 0, ad2 = 0; i < 20; i += 2) {
+            ad1 += ADC_Value[i];
+            ad2 += ADC_Value[i + 1];
+        }
+        ad1 /= 10;
+        ad2 /= 10;
+        printf("\r\n********ADC-DMA-Example*********\r\n");
+        printf("[\tmain]info:v=%1.3fmv\r\n", ad1 * 5000.0 / 4096);
+        printf("[\tmain]info:v=%1.3fmv\r\n", ad2 * 5000.0 / 4096);
 
 ```
 
@@ -238,6 +239,31 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 
 
 
+#### 定时器中断
+
+```c
+HAL_TIM_Base_Start_IT(&htim2);//开启中断
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)//中断回调
+{
+    static unsigned char ledState = 0;
+    if (htim == (&htim2))
+    {
+        if (ledState == 0)
+            HAL_GPIO_WritePin(GPIOE,GPIO_PIN_15,GPIO_PIN_RESET);
+        else
+            HAL_GPIO_WritePin(GPIOE,GPIO_PIN_15,GPIO_PIN_SET);
+        ledState = !ledState;
+    }
+}
+```
+
+
+
+
+
+
+
 ### MPU6050
 
 使用I2C与mpu6050进行通信，加速的测量过于简单所以这里就不做总结，重点在于如何求出欧拉角
@@ -335,104 +361,104 @@ int _fstat(int fd, struct stat *st);
 ```
 
 ```c
-#include <_ansi.h>
-#include <_syslist.h>
-#include <errno.h>
-#include <sys/time.h>
-#include <sys/times.h>
-#include <retarget.h>
-#include <stdint.h>
+    #include <_ansi.h>
+    #include <_syslist.h>
+    #include <errno.h>
+    #include <sys/time.h>
+    #include <sys/times.h>
+    #include <retarget.h>
+    #include <stdint.h>
 
-#if !defined(OS_USE_SEMIHOSTING)
+    #if !defined(OS_USE_SEMIHOSTING)
 
-#define STDIN_FILENO  0
-#define STDOUT_FILENO 1
-#define STDERR_FILENO 2
+    #define STDIN_FILENO  0
+    #define STDOUT_FILENO 1
+    #define STDERR_FILENO 2
 
-UART_HandleTypeDef *gHuart;
+    UART_HandleTypeDef *gHuart;
 
-void RetargetInit(UART_HandleTypeDef *huart)
-{
-    gHuart = huart;
-
-    /* Disable I/O buffering for STDOUT stream, so that
-     * chars are sent out as soon as they are printed. */
-    setvbuf(stdout, NULL, _IONBF, 0);
-}
-
-int _isatty(int fd)
-{
-    if (fd >= STDIN_FILENO && fd <= STDERR_FILENO)
-        return 1;
-
-    errno = EBADF;
-    return 0;
-}
-
-int _write(int fd, char *ptr, int len)
-{
-    HAL_StatusTypeDef hstatus;
-
-    if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
+    void RetargetInit(UART_HandleTypeDef *huart)
     {
-        hstatus = HAL_UART_Transmit(gHuart, (uint8_t *) ptr, len, HAL_MAX_DELAY);
-        if (hstatus == HAL_OK)
-            return len;
-        else
-            return EIO;
+        gHuart = huart;
+
+        /* Disable I/O buffering for STDOUT stream, so that
+         * chars are sent out as soon as they are printed. */
+        setvbuf(stdout, NULL, _IONBF, 0);
     }
-    errno = EBADF;
-    return -1;
-}
 
-int _close(int fd)
-{
-    if (fd >= STDIN_FILENO && fd <= STDERR_FILENO)
-        return 0;
-
-    errno = EBADF;
-    return -1;
-}
-
-int _lseek(int fd, int ptr, int dir)
-{
-    (void) fd;
-    (void) ptr;
-    (void) dir;
-
-    errno = EBADF;
-    return -1;
-}
-
-int _read(int fd, char *ptr, int len)
-{
-    HAL_StatusTypeDef hstatus;
-
-    if (fd == STDIN_FILENO)
+    int _isatty(int fd)
     {
-        hstatus = HAL_UART_Receive(gHuart, (uint8_t *) ptr, 1, HAL_MAX_DELAY);
-        if (hstatus == HAL_OK)
+        if (fd >= STDIN_FILENO && fd <= STDERR_FILENO)
             return 1;
-        else
-            return EIO;
-    }
-    errno = EBADF;
-    return -1;
-}
 
-int _fstat(int fd, struct stat *st)
-{
-    if (fd >= STDIN_FILENO && fd <= STDERR_FILENO)
-    {
-        st->st_mode = S_IFCHR;
+        errno = EBADF;
         return 0;
     }
 
-    errno = EBADF;
-    return 0;
-}
+    int _write(int fd, char *ptr, int len)
+    {
+        HAL_StatusTypeDef hstatus;
 
-#endif //#if !defined(OS_USE_SEMIHOSTING)
+        if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
+        {
+            hstatus = HAL_UART_Transmit(gHuart, (uint8_t *) ptr, len, HAL_MAX_DELAY);
+            if (hstatus == HAL_OK)
+                return len;
+            else
+                return EIO;
+        }
+        errno = EBADF;
+        return -1;
+    }
+
+    int _close(int fd)
+    {
+        if (fd >= STDIN_FILENO && fd <= STDERR_FILENO)
+            return 0;
+
+        errno = EBADF;
+        return -1;
+    }
+
+    int _lseek(int fd, int ptr, int dir)
+    {
+        (void) fd;
+        (void) ptr;
+        (void) dir;
+
+        errno = EBADF;
+        return -1;
+    }
+
+    int _read(int fd, char *ptr, int len)
+    {
+        HAL_StatusTypeDef hstatus;
+
+        if (fd == STDIN_FILENO)
+        {
+            hstatus = HAL_UART_Receive(gHuart, (uint8_t *) ptr, 1, HAL_MAX_DELAY);
+            if (hstatus == HAL_OK)
+                return 1;
+            else
+                return EIO;
+        }
+        errno = EBADF;
+        return -1;
+    }
+
+    int _fstat(int fd, struct stat *st)
+    {
+        if (fd >= STDIN_FILENO && fd <= STDERR_FILENO)
+        {
+            st->st_mode = S_IFCHR;
+            return 0;
+        }
+
+        errno = EBADF;
+        return 0;
+    }
+
+    #endif //#if !defined(OS_USE_SEMIHOSTING)
 ```
 
 添加这两个文件到工程，更新CMake，编译之后会发现，有几个系统函数重复定义了
