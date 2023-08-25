@@ -99,3 +99,41 @@
 7. 上传
 
 ![image-20230208232757539](images/image-20230208232757539.png)
+
+
+
+## 分支的操作
+
+先新建一个分支
+
+```shell
+git checkout -b tabbar
+```
+
+然后修改好分支的内容后上传到云端
+
+```shell
+git add .
+git commit -m "finish"
+git push -u origin tabbar
+```
+
+将分支合并到本地的master分支
+
+```shell
+git checkout master
+git merge tabbar
+```
+
+可以在推送更新master分支
+
+```shell
+git push
+```
+
+最后删除本地的tabbar分支
+
+```shell
+git branch -d tabbar
+```
+
