@@ -36,3 +36,22 @@
 		]
 	}
 ```
+
+
+
+## 配置小程序的请求
+
+安装npm包
+
+```shell
+npm install @escook/request-miniprogram
+```
+
+配置路径，在```main.js```中加入如下
+
+```shell
+import { $http } from '@escook/request-miniprogram'
+
+uni.$http=$http
+```
+
