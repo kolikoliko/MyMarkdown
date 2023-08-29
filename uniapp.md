@@ -55,3 +55,19 @@ import { $http } from '@escook/request-miniprogram'
 uni.$http=$http
 ```
 
+添加拦截器
+
+```js
+//请求拦截器
+$http.beforeRequest = function(option) {
+	uni.showLoading({
+		title: '数据加载中...'
+	})
+}
+
+//响应拦截器
+$http.afterRequest = function() {
+	uni.hideLoading()
+}
+```
+
