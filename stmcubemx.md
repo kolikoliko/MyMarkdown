@@ -177,14 +177,16 @@ AT 模式下波特率：38400
 - `HAL_TIM_Base_Start_IT(&htim2);` 打开定时器中断（**写在 tim 初始化函数的下面**）
 - 写定时器中断回调函数，可以直接在`it.c`文件里面写
 
-        void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-        {
-                static unsigned char ledState = 0;
-                if (htim == (&htim2))
-                {
-        
-                }
-        }
+    ```c
+    void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+    {
+            static unsigned char ledState = 0;
+            if (htim == (&htim2))
+            {
+    			
+            }
+    }
+    ```
 
 再补充记录一些中断回调函数
 
