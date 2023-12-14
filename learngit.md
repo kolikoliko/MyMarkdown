@@ -122,6 +122,7 @@ git push -u origin tabbar
 
 ```shell
 git checkout master
+git pull //更新
 git merge tabbar
 ```
 
