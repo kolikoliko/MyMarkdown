@@ -284,6 +284,46 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)//中断回调
 
 
 
+### us级延时
+
+因为hal库只有ms级的延时所以有时候需要使用us的延时，这里利用systick来做
+
+```c
+/*
+Systick功能实现us延时
+*/
+uint32_t fac_us;
+
+void HAL_Delay_us_init()
+{
+    fac_us=HAL_RCC_GetHCLKFreq() / 1000000;   //获取MCU的主频;
+}
+
+void HAL_Delay_us(uint32_t nus)
+{
+    uint32_t ticks;
+    uint32_t told,tnow,tcnt=0;
+    uint32_t reload=SysTick->LOAD;
+    ticks=nus*fac_us;
+    told=SysTick->VAL;
+    while(1)
+    {
+        tnow=SysTick->VAL;
+        if(tnow!=told)
+        {
+            if(tnow<told)tcnt+=told-tnow;
+            else tcnt+=reload-tnow+told;
+            told=tnow;
+            if(tcnt>=ticks)break;
+        }
+    };
+}
+```
+
+
+
+
+
 
 
 ## 优雅的嵌入式开发(配合Clion使用)	
@@ -484,3 +524,15 @@ printf("\r\nYour name: ");
 scanf("%s", buf);
 printf("\r\nHello, %s!\r\n", buf);
 ```
+
+
+
+### 中文乱码问题
+
+stm32cubemx在重新生成代码的时候，会有中文乱码的问题，这里可以采用添加环境变量的方法解决。
+
+- 变量名称：`JAVA_TOOL_OPTIONS`
+- 变量值：`-Dfile.encoding=UTF-8`
+
+![image-20231214165135471](images/image-20231214165135471.png)
+
