@@ -90,3 +90,38 @@ rosrun learning_topic velocity_publisher
 
 发布者参考连接
 https://blog.csdn.net/qq_44989881/article/details/118568922
+
+订阅发布与客户端服务端建议直接看代码
+课程源码连接在gitee上找了一个
+https://gitee.com/guyuehome/ros_21_tutorials
+
+## 参数的使用
+使用`rosparam`命令可以有很多操作
+
+```shell
+Commands:
+	rosparam set	set parameter
+	rosparam get	get parameter
+	rosparam load	load parameters from file
+	rosparam dump	dump parameters to file
+	rosparam delete	delete parameter
+	rosparam list	list parameter names
+```
+这里的file文件类型一般采用`.yaml`文件格式
+
+也可以采用cpp,py等文件进行操作，具体在代码中也有
+
+## ros中的坐标管理系统
+```shell
+sudo apt-get install ros-melodic-turtle-tf
+roslaunch turtle_tf turtle_tf_demo.launch 
+```
+
+一些查看数据的方法
+```shell
+rosrun tf view_frames
+rosrun tf tf_echo turtle1 turtle2
+0
+```
+
+0
