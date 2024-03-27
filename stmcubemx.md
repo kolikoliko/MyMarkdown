@@ -29,6 +29,10 @@
         HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);//定时器通道使能
         __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,z);//修改占空比，使用z值来修改
 
+**舵机配置**（占空比范围500-2500）
+
+![image-20231226135706173](images/image-20231226135706173.png)
+
 
 
 ### ADC 轮询采集
@@ -522,7 +526,7 @@ char buf[100];
 
 printf("\r\nYour name: ");
 scanf("%s", buf);
-printf("\r\nHello, %s!\r\n", buf);
+/
 ```
 
 
