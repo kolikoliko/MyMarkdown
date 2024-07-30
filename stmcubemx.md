@@ -26,8 +26,10 @@
 
 > **占空比**=Pulse 对比值/(count period 计数值)%
 
-        HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);//定时器通道使能
-        __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,z);//修改占空比，使用z值来修改
+```c
+    HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);//定时器通道使能
+    __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,z);//修改占空比，使用z值来修改
+```
 
 **舵机配置**（占空比范围500-2500）
 
@@ -37,7 +39,7 @@
 
 ### ADC 轮询采集
 
-![image-20230405215255222](images/image-20230405215255222.png)
+x server:  port: 80​spring:  datasource:    druid:      driver-class-name: com.mysql.cj.jdbc.Driver      url: jdbc:mysql://localhost:3306/user?serverTimeZone=UTC      username: root      password: abc123456​#配置表前缀mybatis-plus:  global-config:    db-config:      table-prefix: userproperties
 
 打开持续转换
 
@@ -125,9 +127,9 @@ AT 模式下波特率：38400
 - `printf` 重定向
 
                   int fputc(int ch, FILE *f){
-                  uint8_t temp[1] = {ch};
-                  HAL_UART_Transmit(&huart|, temp ,1, 2);
-                  return ch;
+                      uint8_t temp[1] = {ch};
+                      HAL_UART_Transmit(&huart|, temp ,1, 2);
+                      return ch;
                   }
 
   ！！！使用重定向必须勾选 `MicroLIB` (搞了我好久)
@@ -248,7 +250,7 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 #### 定时器中断
 
 ```c
-HAL_TIM_Base_Start_IT(&htim2);//开启中断
+HAL_TIM_Base_Start_IT(&htim2);//开启定时器中断
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)//中断回调
 {
@@ -328,13 +330,557 @@ void HAL_Delay_us(uint32_t nus)
 
 
 
+### CAN收发FIFO（使用瓴控电机为例子）
+
+<img src="images/image-20240409095720937.png" alt="image-20240409095720937" style="zoom: 80%;" />
+
+<img src="images/image-20240409095747897.png" alt="image-20240409095747897" style="zoom:80%;" />
+
+先配置stm32cubemx,配置波特率，配置中断。
+
+**注意**：在使用通信的的时候，建议设备5v也要上电，因为在`HAL_CAN_Start(&hcan)`这个函数初始化如果rx没有拉高会初始化失败
+
+
+
+然后编写一下函数，这里的添加过滤器和初始化can数据包头都需要放到can初始化后，可以放在`MX_CAN_Init`后面或者里面,代码中还以位置控制作为数据发送包的例子，接收回复编码器的值作为接收中断的例子
+
+```c
+#include "can.h"
+
+CAN_TxHeaderTypeDef canTxHeader;
+CAN_RxHeaderTypeDef canRxHeader;
+uint8_t canTxData[8];
+uint8_t canRxData[8];
+
+uint16_t encoderValue = 0;
+
+
+static uint16_t ctlValue = 10 * 100;
+static uint32_t txMailBox;
+
+//测试包大小
+#define test_msg_size 5000
+static uint16_t Send_msg = 0, Receive_msg = 0;
+
+/**
+  * @brief  MX_CAN_Filter:添加can过滤器，开启can以及接收中断
+  * @param  null
+  * @retval null
+  */
+void MX_CAN_Filter() {
+    CAN_FilterTypeDef sFilterConfig;
+    /* config can filter1 */
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;    // 掩码模式
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;   //32位掩码模式
+    sFilterConfig.FilterIdHigh = (DEVICE_STD_ID) << 5;    // id，过滤器高16位
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = 0xFC00;    // id mask	// 0xFC00
+    sFilterConfig.FilterMaskIdLow = 0x0006;
+    sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+    sFilterConfig.FilterActivation = ENABLE;
+    sFilterConfig.FilterBank = 0;
+    if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK) {
+        /* Initialization Error */
+        Error_Handler();
+    }
+
+    /* config can filter2 */
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;    // Identifier mask mode
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    sFilterConfig.FilterIdHigh = (DEVICE_STD_BOARDCAST_ID) << 5;    // id
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = 0xFFE0;    // id mask	// 0xFFE0
+    sFilterConfig.FilterMaskIdLow = 0x0006;
+    sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+    sFilterConfig.FilterActivation = ENABLE;
+    sFilterConfig.FilterBank = 14;
+    if (HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK) {
+        /* Initialization Error */
+        Error_Handler();
+    }
+
+    /*##-3- Start the CAN peripheral ###########################################*/
+    if (HAL_CAN_Start(&hcan) != HAL_OK) {
+        /* Start Error */
+        Error_Handler();
+    }
+
+    __HAL_CAN_ENABLE_IT(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);    // enable FIFO 0 message pending interrupt
+}
+
+/*********************************************************************************
+* @brief	HAL_CAN_RxFifo0MsgPendingCallback, called in can interrupt  can接收中断
+* @param	None
+* @retval	None
+*********************************************************************************/
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+    /* Get RX message */
+    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &canRxHeader, canRxData) != HAL_OK) {
+        /* Reception Error */
+        Error_Handler();
+    }
+
+    if ((canRxHeader.StdId - DEVICE_STD_ID > 0) && (canRxHeader.DLC == 8)) {
+        /* get encoder value */
+//        encoderValue = (canRxData[7] << 8) + canRxData[6];
+        if (canRxData[0] == 0x9A) {
+            Receive_msg++;
+        }
+//        printf("EncoderValue: %d\r\n", encoderValue);
+    }
+}
+
+/**
+  * @brief  HAL_UART_RxCpltCallback 这个函数用来测试丢包的值
+  * @param  htim 定时器的编号
+  * @retval 无
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)//中断回调
+{
+    static float loss_rate;
+    if (htim == (&htim2)) {
+
+        if (Send_msg >= test_msg_size) {
+            //计算丢包率
+            loss_rate = ((float) Send_msg - (float) Receive_msg) / (float) Send_msg;
+            printf("传输:%d/%d    ", Receive_msg, Send_msg);
+            printf("丢包率:%.2f\r\n", loss_rate * 100);
+
+            Send_msg = 0;
+            Receive_msg = 1;//这里取1是为了保证丢包率的准确率
+        }
+
+        if (Send_msg % 2 == 1) {
+            GetMotorState(1);
+        } else if (Send_msg % 2 == 0) {
+            GetMotorState(2);
+        }
+
+        Send_msg++;
+    }
+}
+
+
+/**
+  * @brief  初始化can数据包头
+  * @param  motorId 电机id
+  * @retval none
+  */
+void CanTxHeaderInit(uint8_t motorId) {
+    canTxHeader.StdId = DEVICE_STD_ID + motorId;
+    canTxHeader.ExtId = 0x00;
+    canTxHeader.RTR = CAN_RTR_DATA;
+    canTxHeader.IDE = CAN_ID_STD;
+    canTxHeader.DLC = 8;
+}
+
+/**
+  * @brief  电机关闭命令，将电机从开启状态（上电后默认状态）切换到关闭状态，清除电机转动圈数及之前接收的控
+            制指令，LED 由常亮转为慢闪。此时电机仍然可以回复控制命令，但不会执行动作。
+  * @param  motorId 电机id
+  * @retval NULL
+  */
+void CloseMotor(uint8_t motorId) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0x80;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = 0x00;
+    canTxData[5] = 0x00;
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  电机运行命令，将电机从关闭状态切换到开启状态，LED 由慢闪转为常亮。此时再发送控制指令即可控制电机动作。
+  * @param  motorId 电机id
+  * @retval NULL
+  */
+void OpenMotor(uint8_t motorId) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0x88;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = 0x00;
+    canTxData[5] = 0x00;
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  电机停止命令,停止电机，但不清除电机运行状态。再次发送控制指令即可控制电机动作。
+  * @param  motorId 电机id
+  * @retval NULL
+  */
+void StopMotor(uint8_t motorId) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0x88;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = 0x00;
+    canTxData[5] = 0x00;
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  开环控制命令，主机发送该命令以控制输出到电机的开环电压
+  * @param  motorId 电机id
+  * @param  powerControl int16_t 类型，数值范围-850~ 850,（电机电流和扭矩因电机而异）
+  * @retval NULL
+  */
+void OpenLoopControlMotor(uint8_t motorId, uint16_t powerControl) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA0;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = *(uint8_t *) &powerControl;
+    canTxData[5] = *((uint8_t *) &powerControl + 1);
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  转矩闭环控制命令，主机发送该命令以控制电机的转矩电流输出
+  * @param  motorId 电机id
+  * @param  iqControl int16_t 类型，数值范围-2048~ 2048，对应 MF 电机实际转矩电流范围-16.5A~16.5A，对应 MG 电机实际转矩电流范围-33A~33A
+  * @retval NULL
+  */
+void TorqueClosedLoopControl(uint8_t motorId, uint16_t iqControl) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA1;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = *(uint8_t *) &iqControl;
+    canTxData[5] = *((uint8_t *) &iqControl + 1);
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  速度闭环控制命令，主机发送该命令以控制电机的速度
+  * @param  motorId 电机id
+  * @param  speedControl  int32_t 类型，对应实际转速为0.01dps/LSB int32_t 类型
+  * @retval NULL
+  */
+void SpeedClosedLoopControl(uint8_t motorId, uint32_t speedControl) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA2;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = *(uint8_t *) &speedControl;
+    canTxData[5] = *((uint8_t *) &speedControl + 1);
+    canTxData[6] = *((uint8_t *) &speedControl + 2);
+    canTxData[7] = *((uint8_t *) &speedControl + 3);
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  多圈位置闭环控制命令 1，主机发送该命令以控制电机的位置（多圈角度）
+  * @param  motorId 电机id
+  * @param  angleControl  int32_t 类型，对应实际位置为 0.01degree/LSB，即 36000 代表 360°，电机转动方向由目标位置和当前位置的差值决定。
+  * @retval NULL
+  */
+void MultiturnPositionClosedLoopControl(uint8_t motorId, uint32_t angleControl) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA3;
+    canTxData[2] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = *(uint8_t *) &angleControl;
+    canTxData[5] = *((uint8_t *) &angleControl + 1);
+    canTxData[6] = *((uint8_t *) &angleControl + 2);
+    canTxData[7] = *((uint8_t *) &angleControl + 3);
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  多圈位置闭环控制命令 2，主机发送该命令以控制电机的位置（多圈角度）
+  * @param  motorId 电机id
+  * @param  maxSpeed 限制了电机转动的最大速度，为 uint16_t 类型，对应实际转速 1dps/LSB，即 360 代表 360dps。
+  * @param  angleControl  int32_t 类型，对应实际位置为 0.01degree/LSB，即 36000 代表 360°，电机转动方向由目标位置和当前位置的差值决定。
+  * @retval NULL
+  */
+void MultiturnPositionClosedLoopSpeedControl(uint8_t motorId, uint16_t maxSpeed, uint32_t angleControl) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA3;
+    canTxData[2] = 0x00;
+    canTxData[2] = *(uint8_t *) &maxSpeed;
+    canTxData[3] = *((uint8_t *) &maxSpeed + 1);
+    canTxData[4] = *(uint8_t *) &angleControl;
+    canTxData[5] = *((uint8_t *) &angleControl + 1);
+    canTxData[6] = *((uint8_t *) &angleControl + 2);
+    canTxData[7] = *((uint8_t *) &angleControl + 3);
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  SetMotorAngle设置电机单圈角度,主机发送该命令以控制电机的位置（单圈角度）
+  * @param  motorId 电机id
+  * @param  spinDirection 设置电机转动的方向，为 uint8_t 类型，0x00 代表顺时针，0x01 代表逆时针
+  * @param  angleControl 对应实际位置为0.01degree/LSB，即36000代表360°
+  * @retval NULL
+  */
+void SetMotorAngle(uint8_t motorId, uint8_t spinDirection, uint32_t angleControl) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA5;
+    canTxData[1] = spinDirection;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = *(uint8_t *) &angleControl;
+    canTxData[5] = *((uint8_t *) &angleControl + 1);
+    canTxData[6] = *((uint8_t *) &angleControl + 2);
+    canTxData[7] = *((uint8_t *) &angleControl + 3);
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  SetMotorAngleMaxSpeed 带最大速度设置单圈角度
+  * @param  motorId 电机id
+  * @param  spinDirection 设置电机转动的方向，为 uint8_t 类型，0x00 代表顺时针，0x01 代表逆时针
+  * @param  angleControl 对应实际位置为0.01degree/LSB，即36000代表360°
+  * @param  maxSpeed 限制了电机转动的最大速度，为 uint16_t 类型，对应实际转速1dps/LSB，即 360 代表 360dps
+  * @retval NULL
+  */
+void SetMotorAngleMaxSpeed(uint8_t motorId, uint8_t spinDirection, uint32_t angleControl, uint16_t maxSpeed) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA6;
+    canTxData[1] = spinDirection;
+    canTxData[2] = *(uint8_t *) (&maxSpeed);
+    canTxData[3] = *((uint8_t *) (&maxSpeed) + 1);
+    canTxData[4] = *(uint8_t *) (&angleControl);
+    canTxData[5] = *((uint8_t *) (&angleControl) + 1);
+    canTxData[6] = *((uint8_t *) (&angleControl) + 2);
+    canTxData[7] = *((uint8_t *) (&angleControl) + 3);
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+/**
+  * @brief  SetMotorAddAngle 增量式位置控制闭环
+  * @param  motorId 电机id
+  * @param  angleIncrement 对应实际增加角度 为0.01degree/LSB，即36000代表360°
+  * @retval NULL
+  */
+void SetMotorAddAngle(uint8_t motorId, uint32_t angleIncrement) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0xA7;
+    canTxData[1] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = *((uint8_t *) &angleIncrement + 0);
+    canTxData[5] = *((uint8_t *) &angleIncrement + 1);
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+
+/**
+  * @brief  GetMotorState 读取当前电机的温度、电压和错误状态标志
+  * @param  motorId 获取电机信息的id
+  * @retval NULL
+  */
+void GetMotorState(uint8_t motorId) {
+    CanTxHeaderInit(motorId);
+
+    canTxData[0] = 0x9A;
+    canTxData[1] = 0x00;
+    canTxData[2] = 0x00;
+    canTxData[3] = 0x00;
+    canTxData[4] = 0x00;
+    canTxData[5] = 0x00;
+    canTxData[6] = 0x00;
+    canTxData[7] = 0x00;
+
+    HAL_CAN_AddTxMessage(&hcan, &canTxHeader, canTxData, &txMailBox);
+}
+
+
+```
+
+
+
+再加一下.h文件
+
+```c
+#ifndef MOTOR_TEST_CAN_H
+#define MOTOR_TEST_CAN_H
+
+#include "main.h"
+
+#define DEVICE_STD_ID                        (0x140)
+#define DEVICE_STD_BOARDCAST_ID    (0x280)
+
+#define CAN_SHDN_Pin              GPIO_PIN_7    // shutdown
+#define CAN_SHDN_GPIO_Port        GPIOB
+#define CAN_SHDN_ENABLE()         HAL_GPIO_WritePin(CAN_SHDN_GPIO_Port, CAN_SHDN_Pin, GPIO_PIN_SET)
+#define CAN_SHDN_DISABLE()        HAL_GPIO_WritePin(CAN_SHDN_GPIO_Port, CAN_SHDN_Pin, GPIO_PIN_RESET)
+
+extern CAN_HandleTypeDef hcan;
+extern TIM_HandleTypeDef htim2;
+extern CAN_TxHeaderTypeDef canTxHeader;
+extern CAN_RxHeaderTypeDef canRxHeader;
+extern uint8_t canTxData[];
+extern uint8_t canRxData[];
+
+void MX_CAN_Filter(void);
+
+void CanTxHeaderInit(uint8_t motorId);
+
+void CloseMotor(uint8_t motorId);
+
+void OpenMotor(uint8_t motorId);
+
+void StopMotor(uint8_t motorId);
+
+void OpenLoopControlMotor(uint8_t motorId, uint16_t powerControl);
+
+void TorqueClosedLoopControl(uint8_t motorId, uint16_t iqControl);
+
+void SpeedClosedLoopControl(uint8_t motorId, uint32_t speedControl);
+
+void MultiturnPositionClosedLoopControl(uint8_t motorId, uint32_t angleControl);
+
+void MultiturnPositionClosedLoopSpeedControl(uint8_t motorId, uint16_t maxSpeed, uint32_t angleControl);
+
+void SetMotorAngle(uint8_t motorId, uint8_t spinDirection, uint32_t angleControl);
+
+void SetMotorAngleMaxSpeed(uint8_t motorId, uint8_t spinDirection, uint32_t angleControl, uint16_t maxSpeed);
+
+void SetMotorAddAngle(uint8_t motorId, uint32_t angleIncrement);
+
+void GetMotorState(uint8_t motorId);
+
+#endif //MOTOR_TEST_CAN_H
+
+```
+
+
+
+### 编码器使用
+
+[STM32CubeMX 编码器测速](https://blog.csdn.net/qq_59953808/article/details/130297562)
+
+先使用`Encoder Mode`
+
+![image-20240426202126476](images/image-20240426202126476.png)
+
+
+
+然后配置编码器，10是滤波
+
+<img src="images/image-20240426204521613.png" alt="image-20240426204521613" style="zoom:67%;" />
+
+在引入encoder.c和.h文件
+
+**encoder.c**
+
+```c
+#include "encode.h"
+/**************************************************************************
+函数功能：单位时间读取编码器计数
+入口参数：定时器
+返回  值：速度值
+**************************************************************************/
+int Read_Encoder(void)//读取计数器的值
+{
+  int Encoder_TIM;
+	
+	Encoder_TIM=(short)ENCODE_TIMX->CNT; ENCODE_TIMX ->CNT=0;
+
+  return Encoder_TIM;
+}
+```
+
+**encoder.h**
+
+```c
+#ifndef __ENCODE_H
+#define __ENCODE_H
+#include "main.h"
+#define ENCODE_TIMX TIM4
+int Read_Encoder(void);//读取计数器的值
+#endif
+```
+
+
+
+在定时器中断里面调用即可
+
+```c
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if(htim==(&htim9))//因为我采用的是定时器6
+  {	
+		printf("%d",Read_Encoder());
+  }
+}
+```
+
+
+
+注意,ENCODE_TIMX这里面的要改成自己的定时器TIM(?)
+
+```c
+Encoder_TIM=(short)ENCODE_TIMX->CNT; ENCODE_TIMX ->CNT=0;
+```
+
+
+
+### 看门狗
+
+勾选独立看门狗
+
+<img src="images/image-20240723164616818.png" alt="image-20240723164616818" style="zoom:80%;" />
+
+配置时间
+
+<img src="images/image-20240723164650372.png" alt="image-20240723164650372" style="zoom: 80%;" />
+
+<img src="images/image-20240723165454273.png" alt="image-20240723165454273" style="zoom:80%;" />
+
+然后在程序里面溢出时间内喂狗就好了`HAL_IWDG_Refresh(&hiwdg);//喂狗`
+
 
 
 ## 优雅的嵌入式开发(配合Clion使用)	
 
 这里参考稚晖君的文章[配置CLion用于STM32开发【优雅の嵌入式开发】 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/145801160)
 
-## 
+图里面的Toolchain可以换成stm32cubeIDE
 
 <img src="images/image-20230330191101324.png" alt="image-20230330191101324" style="zoom:80%;" />
 
@@ -539,4 +1085,40 @@ stm32cubemx在重新生成代码的时候，会有中文乱码的问题，这里
 - 变量值：`-Dfile.encoding=UTF-8`
 
 ![image-20231214165135471](images/image-20231214165135471.png)
+
+
+
+### 烧录H7时候报错
+
+```shell
+FAILED: Ctr_Board.elf 
+
+d:/app/jetbrains/stm32-clion/gcc-arm-none-eabi-10.3-2021.10/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/bin/ld.exe:D:/document/ClionProject/Ctr_Board/STM32H723VGTX_FLASH.ld:91: non constant or forward reference address expression for section .ARM.extab
+collect2.exe: error: ld returned 1 exit status
+```
+
+原因：
+最新的 STM32CubeMx 生成的 .ld 文件中含有 **READONLY** 关键字，此关键字只能在 gcc 11 版本及以后使用，gcc 10及以下版本解析不了报错。（在后面生成的注释中也有说明）
+
+解决方法：
+打开 .ld 文件，删除所有 (READONLY) 字段
+
+![image-20240711141119786](images/image-20240711141119786.png)
+
+
+
+### 使用FreeRTOS时报错
+
+![image-20240712150919219](images/image-20240712150919219.png)
+
+```cmake
+#Uncomment for hardware floating point
+add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
+add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+```
+
+需要将cmakelist.txt的这个地方取消注释掉
+
+
 
