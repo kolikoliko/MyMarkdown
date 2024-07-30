@@ -17,14 +17,16 @@
 2. 连接数据库
 
    ```python
-   # 连接数据库
-   conn = pymysql.connect(host='127.0.0.1',  # 连接名称，默认127.0.0.1
-                          user='root',  # 用户名
-                          passwd='abc12456',  # 密码
-                          port=3306,  # 端口，默认为3306
-                          db='user',  # 数据库名称
-                          charset='utf8'  # 字符编码
-                          )
+   def connectDB():
+       # 连接数据库
+       conn = pymysql.connect(host='42.193.160.52',  # 连接名称，默认127.0.0.1
+                              user='easy_demo',  # 用户名
+                              passwd='P4JbyPXpaXPPB56J',  # 密码
+                              port=3306,  # 端口，默认为3306
+                              db='easy_demo',  # 数据库名称
+                              charset='utf8'  # 字符编码
+                              )
+       return conn
    ```
 
 3. 基本使用
@@ -66,10 +68,10 @@ try:
     ret = cursor.execute(sql,["黄蓉",75，"男",3])
     print(ret)
     # 增删改都必须进行提交操作(commit)
-    conn.commit(sql)
+    conn.commit()
 except  Exception as e:
     #对插入、修改、删除的数据进行撤销，表示数据回滚（回到没有修改数据之前的状态）
-    conn.rellback
+    conn.rollback
 finally:
     #关闭游标
     cursor.close()
@@ -77,3 +79,6 @@ finally:
     conn.close()
 ```
 
+
+
+## request和response
