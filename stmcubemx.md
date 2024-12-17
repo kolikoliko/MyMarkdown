@@ -136,6 +136,53 @@ AT 模式下波特率：38400
 
 在串口收发的是时候不要轻易加操作，可能会触发中断导致接收异常（比如在接收里面加串口的发送）
 
+#### DMA串口收发
+
+[STM32CubeMX HAL库串口+DMA+IDLE空闲中断不定长度数据接收和发送_hal 库 清除 dma接收中断标志位-CSDN博客](https://blog.csdn.net/CSDN_Xu_xue/article/details/104403532)
+
+[【笔记】STM32CubeMx+串口空闲中断+DMA——利用函数HAL_UARTEx_ReceiveToIdle_DMA实现不定长数据接收——STM32F103ZET6（匿名上位机/助手基本收发可用）_stm32cubemx 串口空闲中断dma-CSDN博客](https://blog.csdn.net/weixin_64459915/article/details/131832143)
+
+这里给出一些DMA串口的操作
+
+DMA在串口打开后,将rx引脚设置为上拉
+
+<img src="D:\desktop\mark-down\images\image-20241217114810129.png" alt="image-20241217114810129" style="zoom:50%;" />
+
+<img src="D:\desktop\mark-down\images\image-20241217114557295.png" alt="image-20241217114557295" style="zoom:67%;" />
+
+使用函数：
+
+##### DMA发送函数
+
+`HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size)`;
+
+##### DMA空闲接收函数
+
+```c
+#define BUF_SIZE 200
+uint8_t rx_buffer[BUF_SIZE];  // 创建接收缓存,大小为BUF_SIZE
+
+HAL_UARTEx_ReceiveToIdle_DMA(&huart1,rx_buffer,BUF_SIZE);//开启空闲中断
+
+//空闲中断回调
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{	
+    if (huart->Instance == USART1)
+    {
+        Size = BUF_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+        HAL_UART_Transmit(&huart1, rx_buffer, Size, 0xffff);	//将接受到的数据再发回上位机
+        memset(rx_buffer, 0, Size);
+		
+		//放在void USART1_IRQHandler(void)函数里，不要放在这
+		//HAL_UARTEx_ReceiveToIdle_DMA(&huart1,rx_buffer,BUF_SIZE);不要放在这里，如果放在这里，不仅上位机的波特率改变不能正常接收，就算改回去了也会接收不了
+    }
+}
+```
+
+
+
+
+
 
 
 ### IO 口操作
